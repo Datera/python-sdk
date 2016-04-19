@@ -46,7 +46,6 @@ import linecache
 import re
 import multiprocessing as mp
 from dfs_sdk import DateraApi
-from pprint import pprint
 
 SLEEP = 10
 NUMREPLICAS = 3
@@ -491,9 +490,8 @@ def main():
     #
     # Semantics:  If a template exists, create args.aicount instances
     #             from that template.
-    #             If a template does not exist, create args.aicount instances
-    #             Assumes 1:1:1 ratio of AppInstance:StorageInstance:Volume
-    # TODO:       Allow non-singleton configurations
+    #             If a template does not exist, create args.aicount instances if sicount or volcount is not specified
+    #             or create aicount appinstances with sicount storage instances with volcount volumes
 
     # Make sure template exists
     if args.template:
