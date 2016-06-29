@@ -17,7 +17,7 @@ Usage:
         --dirprefix <string>
         --chown <string>
         --fstype <string>
-        --createfiofiles
+        --createfio
         --volsnap  <RETCOUNT> <SNAPINTERVAL>
         --volperf  <TOTAL_IOPS_MAX> <TOTAL_BANDWIDTH_MAX>
 
@@ -33,7 +33,7 @@ Usage:
     'dirprefix' specifies a mount point prefix for the volume mount
     'chown' specifies chown:chgrp for the mount point
     'fstype currently xfs (default) or ext4
-    'createfiofiles' creates sample fio files for each volume
+    'createfio' creates sample fio files for each volume
     'volsnap' specifies snapshot retention count and interval
     'volperf' volume-level total max iops and bandwidth
 
@@ -71,7 +71,7 @@ Usage:
         --dirprefix <string>
         --chown <string>
         --fstype <string>
-        --createfiofiles
+        --createfio
         --volsnap  <RETCOUNT> <SNAPINTERVAL>
         --volperf  <TOTAL_IOPS_MAX> <TOTAL_BANDWIDTH_MAX>
 
@@ -87,7 +87,7 @@ Usage:
     'dirprefix' specifies a mount point prefix for the volume mount
     'chown' specifies chown:chgrp for the mount point
     'fstype currently xfs (default) or ext4
-    'createfiofiles' creates sample fio files for each volume
+    'createfio' creates sample fio files for each volume
     'volsnap' specifies snapshot retention count and interval(15min, 1hour, 1day, 1month, 1year)
     'volperf' volume-level total max iops and bandwidth(KBps)
 
@@ -326,7 +326,7 @@ def mpmap(api, args):
 
 def create_fio_template():
     with open('fiotemplate','w') as f:
-       lines = ["[global]","randrepeat=0","ioengine=libaio","iodepth=2","direct=1","numjobs=2","runtime=3600","group_reporting","time_based"]
+       lines = ["[global]","randrepeat=0","ioengine=libaio","iodepth=16","direct=1","numjobs=4","runtime=3600","group_reporting","time_based"]
        for line in lines:
           f.write(line + '\n')
 
@@ -335,7 +335,8 @@ def create_fio_files(api,args):
     fio = {'fio_randread':{'rw':'randread', 'blocksize':'4k'},
            'fio_seqread':{'rw':'read', 'blocksize':'1m'},
            'fio_randwrite':{'rw':'randwrite', 'blocksize':'4k'},
-           'fio_seqwrite':{'rw':'write', 'blocksize':'1m'}
+           'fio_seqwrite':{'rw':'write', 'blocksize':'1m'},
+           'fio_randreadwrite':{'rw':'randrw', 'rwmixread': '70', 'blocksize':'4k'}
           }
 
     create_fio_template()
@@ -373,6 +374,9 @@ def unmount(name):
     cmd = "mount |grep %s | awk '{print $3}'" % name
     for l in os.popen(cmd).readlines():
         line = l.rstrip()
+         if line == "/":
+            print "skipping unmount of /"
+            return None
         p = os.path.basename(line)
         run_cmd("umount %s" % line)
         run_cmd("rm -rf %s" % line)
@@ -512,7 +516,7 @@ def main():
     parser = argparse.ArgumentParser(description='dhutil')
     parser.add_argument('--basename', action="store", dest="basename")
     parser.add_argument('--template', action="store", dest="template")
-    parser.add_argument('--createfiofiles', action="store_true")
+    parser.add_argument('--createfio', action="store_true")
     parser.add_argument('--size', action="store", dest="size")
     parser.add_argument('--count', action="store", dest='count', type=int)
     parser.add_argument('--numreplicas', action="store", dest='numreplicas',
@@ -631,7 +635,7 @@ def main():
         pool = mp.Pool()
         list(pool.imap_unordered(mkfs, mntmap))
  
-    if args.createfiofiles:
+    if args.createfio:
         create_fio_files(api,args)
 
 if __name__ == '__main__':
