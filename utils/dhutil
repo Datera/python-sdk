@@ -8,7 +8,9 @@ Usage:
         --basename <string>
         --template <string>
         --size <string> (GB)
-        --count <int>
+        --aicount <int>
+        --sicount <int>
+        --volcount <int>
         --numreplicas <int>
         --cleanall
         --showall
@@ -20,7 +22,9 @@ Usage:
 
     'basename' corresponds to the app_instance
     'size' is interpreted as number of GB.
-    'count' is the number of app_instances to create
+    'aicount' is the number of app_instances to create. Uses n:n:n model when specified without sicount and volcount
+    'sicount' is the number of storage_instances to create per application instance
+    'volcount' is the number of volumes to create per storage instance
     'numreplicas' is the number of replicas to create
     'template' must refer to an existing template
     'cleanall' applies only to a given 'basename'
@@ -56,7 +60,9 @@ Usage:
         --basename <string>
         --template <string>
         --size <string> (GB)
-        --count <int>
+        --aicount <int>
+        --sicount <int>
+        --volcount <int>
         --numreplicas <int>
         --cleanall
         --showall
@@ -68,7 +74,9 @@ Usage:
 
     'basename' corresponds to the app_instance
     'size' is interpreted as number of GB.
-    'count' is the number of app_instances to create
+    'aicount' is the number of app_instances to create. Uses n:n:n model when specified without sicount and volcount
+    'sicount' is the number of storage_instances to create per application instance
+    'volcount' is the number of volumes to create per storage instance
     'numreplicas' is the number of replicas to create
     'template' must refer to an existing template
     'cleanall' applies only to a given 'basename'
@@ -254,7 +262,7 @@ def mpmap(api, args):
                                'nodename': si_to_hostname(api,si) }
                     if 'iqn' in si['access']:
                         map[id]['iqn'] = si['access']['iqn']
-
+   
     for m in map:
         sd = iqn_to_sd(map[m]['iqn'])
         if sd:
@@ -326,13 +334,13 @@ def chk_args(args):
         usage()
 
     # options required if basename
-    if args.basename and not (args.template or args.count or
+    if args.basename and not (args.template or args.aicount or
                               args.cleanall or args.mpmap or args.mkfs):
         print "ERROR: Missing required arguments for 'basename'"
         usage()
-
+ 
     # options not allowed with cleanall
-    if args.cleanall and (args.size or args.count or args.showall or
+    if args.cleanall and (args.size or args.aicount or args.sicount or args.volcount or args.showall or
                           args.mkfs or args.mpmap or args.dirprefix or
                           args.chown or args.template or
                           args.fstype or args.numreplicas):
@@ -340,12 +348,16 @@ def chk_args(args):
         usage()
 
     # option combinations required
-    if args.count and not (args.size or args.template):
-        print "ERROR: 'count' requires 'size' or 'template'"
+    if args.aicount and not (args.size or args.template):
+        print "ERROR: 'aicount' requires 'size' or 'template'"
         usage()
 
-    if args.template and not args.count:
-        print "ERROR: 'template' requires 'count'"
+    if (args.aicount and args.sicount and not args.volcount) or (args.aicount and args.volcount and not args.sicount):
+        print "ERROR: Both sicount and volcount must be specified together"
+        usage()
+  
+    if args.template and not args.aicount: 
+        print "ERROR: 'template' requires 'aicount'"
         usage()
 
     if args.fstype and not args.mkfs:
@@ -431,7 +443,9 @@ def main():
     parser.add_argument('--basename', action="store", dest="basename")
     parser.add_argument('--template', action="store", dest="template")
     parser.add_argument('--size', action="store", dest="size")
-    parser.add_argument('--count', action="store", dest='count', type=int)
+    parser.add_argument('--aicount', action="store", dest='aicount', type=int)
+    parser.add_argument('--sicount', action="store", dest='sicount', type=int)
+    parser.add_argument('--volcount', action="store", dest='volcount', type=int)
     parser.add_argument('--numreplicas', action="store", dest='numreplicas',
                         type=int)
     parser.add_argument('--cleanall', action="store_true")
@@ -478,27 +492,26 @@ def main():
             mpmap(api, args)
         sys.exit(0)
 
-    if args.mpmap and not args.count:
+    if args.mpmap and not args.aicount and not args.sicount and not args.volcount:
         mpmap(api, args)
         sys.exit(0)
-
+   
     cmd = "grep '^InitiatorName' /etc/iscsi/initiatorname.iscsi"
     cmd = cmd + " | sed -e 's/InitiatorName=//'"
     iscsi_initiator = os.popen(cmd).read().strip()
     ii = initiator_create(api, host, iscsi_initiator)
 
     #
-    # Semantics:  If a template exists, create args.count instances
+    # Semantics:  If a template exists, create args.aicount instances
     #             from that template.
-    #             If a template does not exist, create args.count instances
-    #             Assumes 1:1:1 ratio of AppInstance:StorageInstance:Volume
-    # TODO:       Allow non-singleton configurations
+    #             If a template does not exist, create args.aicount instances if sicount or volcount is not specified
+    #             or create aicount appinstances with sicount storage instances with volcount volumes
 
     # Make sure template exists
     if args.template:
         if chktempl(api, args.template):
             # Create N app_instances from the template
-            for n in range(1, args.count + 1):
+            for n in range(1, args.aicount + 1):
                 appname = "%s-%d" % (args.basename, n)
                 tname = "/app_templates/" + args.template
                 ai = api.app_instances.create(name=appname, app_template=tname)
@@ -516,16 +529,17 @@ def main():
         else:
             print args.template, " : does not exist!"
             sys.exit(-1)
-    elif args.count:
+
+    elif args.aicount and not args.sicount and not args.volcount:
         #
         # Create N app_instances, storage_instance, and add initiator
         #
-        for i in range(1, args.count + 1):
+        for i in range(1, args.aicount + 1):
             bname = "{}_{}".format(basename, i)
             ai = api.app_instances.create(name=bname)
             si = ai.storage_instances.create(name=bname)
             si.acl_policy.initiators.add(ii)
-            volname = "{}_vol".format(bname)
+            volname = bname + "_vol_" + str(i)
             uuid = vol_create(si, volname, args)
             print "Created Volume: %s (%s)" % (volname, uuid)
 
@@ -535,6 +549,28 @@ def main():
             if basename in ai['name']:
                 si = ai.storage_instances.list()[0]
                 target_login(host, si, iscsi_initiator, sleep=0)
+
+        run_cmd("lsscsi -t")
+    
+    elif args.aicount and args.sicount and args.volcount:
+        for i in range(1, args.aicount + 1):
+            ainame = basename + "_" + str(i)
+            ai = api.app_instances.create(name=ainame)
+            for j in range(1, args.sicount + 1):
+               siname = "storage_" + str(j)
+               si = ai.storage_instances.create(name=siname)
+               si.acl_policy.initiators.add(ii)
+               for k in range(1, args.volcount + 1):
+                  volname = "vol_" + str(k)
+                  uuid = vol_create(si, volname, args)
+                  print "Created Volume: %s (%s)" % (volname, uuid)
+
+        print "Waiting 10 for storage to come online ..."
+        time.sleep(10)
+        for ai in api.app_instances.list():
+            if basename in ai['name']:
+                for si in ai.storage_instances.list():
+                   target_login(host, si, iscsi_initiator, sleep=0)
 
         run_cmd("lsscsi -t")
 
