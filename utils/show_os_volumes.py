@@ -95,7 +95,7 @@ def main(args):
             print(ai_name)
         print("\nDatera Non-OpenStack AIs")
         print("------------------------")
-        for ai in sorted(non_os):
+        for ai_name in sorted(non_os):
             print(ai_name)
 
 
