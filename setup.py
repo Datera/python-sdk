@@ -34,6 +34,7 @@ setup(
     version=version,
     description='Datera Fabric Python SDK',
     long_description=get_readme(),
+    long_description_content_type='text/markdown',
     author='Datera Automation Team',
     author_email='support@datera.io',
     packages=find_packages('src'),
