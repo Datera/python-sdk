@@ -4,7 +4,7 @@ since many other modules import this one
 """
 __copyright__ = "Copyright 2017, Datera, Inc."
 
-VERSION = "1.2.22"
+VERSION = "1.2.23"
 
 VERSION_HISTORY = """
 Version History:
@@ -44,6 +44,7 @@ Version History:
               parameter for changing cached-schema location
     1.2.22 -- Better retry support.  Bugfix for mutated arguments during
               retries
+    1.2.23 -- Fix for failed retry POST requests
 """
 
 API_VERSIONS = ("v2", "v2.1", "v2.2")

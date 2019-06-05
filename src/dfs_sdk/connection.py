@@ -14,6 +14,7 @@ import uuid
 
 import requests
 
+from .dat_jank import post_to_get
 from .exceptions import ApiError
 from .exceptions import ApiAuthError, ApiConnectionError, ApiTimeoutError
 from .exceptions import ApiInternalError, ApiNotFoundError
@@ -71,11 +72,20 @@ def _with_retry(method):
         tstart = time.time()
         backoff = 0
         err = None
+        no_response = False
         while time.time() - tstart < RETRY_TIMEOUT:
             try:
+                # if len(args) > 0 and args[0].lower() == "post":
+                #     method(self, *copy.deepcopy(args),
+                #            **copy.deepcopy(kwargs))
+                #     if not no_response:
+                #         raise ApiConnectionError("BadStatusLineWhatever")
+                #     if no_response:
+                #         raise ApiConflictError("Ruh-Roh")
                 return method(
                     self, *copy.deepcopy(args), **copy.deepcopy(kwargs))
             except Api503RetryError as e:
+                no_response = False
                 if self._context.retry_503_type == "random":
                     err = e
                     slp = round(random.random() * 10, 2)
@@ -92,6 +102,7 @@ def _with_retry(method):
                 else:
                     raise
             except ApiConnectionError as e:
+                no_response = True
                 if self._context.retry_connection_type == "random":
                     err = e
                     slp = round(random.random() * 10, 2)
@@ -106,6 +117,12 @@ def _with_retry(method):
                     time.sleep(slp)
                 else:
                     raise
+            except ApiConflictError as e:
+                # ConflictError can only happen with POST requests
+                if no_response:
+                    return post_to_get(
+                        self, method, args[1], kwargs['data'], e)
+                raise
         raise ApiTimeoutError("Request never succeeded before timeout period "
                               "expired: {}".format(err))
     return _wrapper_retry
@@ -181,6 +198,9 @@ class ApiConnection(object):
         protocol, port, cert_data, api_version, host, connection_string = \
                 self._get_request_attrs(urlpath)
         headers.update(**self._extra_headers)
+        if headers['Datera-Driver'] != self.HEADER_DATA['Datera-Driver']:
+            headers['Datera-Driver'] = "|".join((
+                headers['Datera-Driver'], self.HEADER_DATA['Datera-Driver']))
         request_id = uuid.uuid4()
         if sensitive:
             dbody = "********"
