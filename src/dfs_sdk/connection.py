@@ -171,6 +171,7 @@ class ApiConnection(object):
         self._key = None
         self.reader = None
         self._logged_in = False
+        self._product_version = None
 
     @classmethod
     def from_context(cls, context):
@@ -324,18 +325,20 @@ class ApiConnection(object):
         headers["content-type"] = "application/json; charset=utf-8"
         urlpath = "/login"
         method = "PUT"
-        resp_dict, resp_status, resp_reason, resp_hdrs = \
-            self._http_connect_request(method, urlpath, body=body,
-                                       headers=headers, sensitive=True)
-        if 'key' not in resp_dict or not resp_dict['key']:
-            raise ApiAuthError("No auth key returned", resp_dict)
-        key = str(resp_dict['key'])
         with self._lock:
+            resp_dict, resp_status, resp_reason, resp_hdrs = \
+                self._http_connect_request(method, urlpath, body=body,
+                                           headers=headers, sensitive=True)
+            if 'key' not in resp_dict or not resp_dict['key']:
+                raise ApiAuthError("No auth key returned", resp_dict)
+            key = str(resp_dict['key'])
             self._key = key
             self._logged_in = True
             Reader = get_reader(self._version)
             reader = Reader(self._get_schema(Reader._endpoint))
             self.reader = reader
+            system = self.read_entity("/system")
+            self._product_version = system["sw_version"]
 
     def logout(self):
         """ Perform logout operation with the key"""

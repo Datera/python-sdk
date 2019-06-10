@@ -32,7 +32,8 @@ def mock_api_21():
         resp_data = load_asset("api_endpoint_21.txt")
         http.side_effect = [({"key": "84c457eb414c4ab5a472292c4bc2b1c1",
                               "version": "v2.1"}, 200, "", {}),
-                            (resp_data, 200, "", {})]
+                            (resp_data, 200, "", {}),
+                            ({"sw_version": "3.2.0.0"}, 200, "", {})]
         con._http_connect_request = http
         ctxt_mock.connection = con
         ctxt_mock.reader._ep_name_set.__contains__ = lambda a, b: True

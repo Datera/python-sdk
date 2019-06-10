@@ -33,6 +33,50 @@ def snake_to_camel(name):
     parts = name.split('_')
     return "".join(x.title() for x in parts)
 
+
+def _version_to_int(ver):
+    # Using a factor of 100 per digit so up to 100 versions are supported
+    # per major/minor/patch/subpatch digit in this calculation
+    # Example:
+    # In [2]: _version_to_int("3.3.0.0")
+    # Out[2]: 303000000
+    # In [3]: _version_to_int("2.2.7.1")
+    # Out[3]: 202070100
+    VERSION_DIGITS = 4
+    factor = pow(10, VERSION_DIGITS * 2)
+    div = pow(10, 2)
+    val = 0
+    for c in ver.split("."):
+        val += int(int(c) * factor)
+        factor /= div
+    return val
+
+
+def dat_version_gte(version_a, version_b):
+    return _version_to_int(version_a) >= _version_to_int(version_b)
+
+
+def metadata_class_wrapper(context, path):
+    """
+    In 3.3.0.0+ the /app_instances/:id/metadata endpoint was changed to
+    /app_instances/:id/internal_metadata so it is concealed from the customer.
+    This function translates the original metadata endpoint into the new
+    one transparently for the user.  So whenever the user calls ai.metadata
+    they're really calling ai.internal_metadata provided the product
+    version is high enough to support it.
+    """
+    if dat_version_gte(context.connection._product_version, "3.3.0.0"):
+        klass = type(snake_to_camel(
+            "int_ecosystem_data"), (GenericEndpoint,), {})
+        klass.__init__ = get_init_func(klass)
+        klass._name = "int_ecosystem_data"
+    else:
+        klass = type(snake_to_camel(
+            "metadata"), (GenericEndpoint,), {})
+        klass.__init__ = get_init_func(klass)
+        klass._name = "metadata"
+    return klass(context, path)
+
 ###############################################################################
 
 
@@ -143,11 +187,12 @@ class Entity(collections.Mapping):
             if attr not in self.context.reader._ep_name_set:
                 if attr in self._data:
                     return self._data[attr]
-                else:
+                elif self.context.strict:
                     raise SdkEndpointNotFound(
                         "No {} Endpoint found for {}".format(
                             self.context.connection._version, attr))
-
+            if attr == 'metadata':
+                return metadata_class_wrapper(self.context, self._path)
             klass = type(snake_to_camel(attr), (GenericEndpoint,), {})
             klass.__init__ = get_init_func(klass)
             klass._name = attr
