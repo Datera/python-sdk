@@ -33,6 +33,28 @@ LOG = get_log(__name__)
 urllib3.disable_warnings()
 
 
+def _version_to_int(ver):
+    # Using a factor of 100 per digit so up to 100 versions are supported
+    # per major/minor/patch/subpatch digit in this calculation
+    # Example:
+    # In [2]: _version_to_int("3.3.0.0")
+    # Out[2]: 303000000
+    # In [3]: _version_to_int("2.2.7.1")
+    # Out[3]: 202070100
+    VERSION_DIGITS = 4
+    factor = pow(10, VERSION_DIGITS * 2)
+    div = pow(10, 2)
+    val = 0
+    for c in ver.split("."):
+        val += int(int(c) * factor)
+        factor /= div
+    return val
+
+
+def dat_version_gte(version_a, version_b):
+    return _version_to_int(version_a) >= _version_to_int(version_b)
+
+
 def _with_authentication(method):
     """
     Decorator to wrap Api method calls so that we login again if our key
@@ -417,10 +439,24 @@ class ApiConnection(object):
         else:
             offset = 0
 
+        if params is None:
+            params = {}
+
+        # hotfix for issue with filter not being applied before
+        # calculating total_count.  We're assuming that if
+        # 'filter' is applied, we'll never have more than
+        # 100 results which should account for the vast majority
+        # of cases anyways.
+        # This is fixed in the latest 3.3 patch
+        filter_skip = False
+        if "filter" in params and not dat_version_gte(
+                self._product_version, "3.3.0.0"):
+            filter_skip = True
+
         # Should we handle POST or PUT?
         # Limiting the method to GET for now
         if (method == "GET" and "total_count" in resp_meta["metadata"] and
-                "request_count" in resp_meta["metadata"]):
+                "request_count" in resp_meta["metadata"] and not filter_skip):
             # Keep firing until we get everything
             while True:
                 ccount = offset + resp_meta["metadata"]["request_count"]
