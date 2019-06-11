@@ -4,7 +4,7 @@ since many other modules import this one
 """
 __copyright__ = "Copyright 2017, Datera, Inc."
 
-VERSION = "1.2.23"
+VERSION = "1.2.24"
 
 VERSION_HISTORY = """
 Version History:
@@ -45,6 +45,9 @@ Version History:
     1.2.22 -- Better retry support.  Bugfix for mutated arguments during
               retries
     1.2.23 -- Fix for failed retry POST requests
+    1.2.24 -- Accumulation skip for 3.2.X product versions when 'filter'
+              parameter is present.  Added version check system and
+              local version update during login.
 """
 
 API_VERSIONS = ("v2", "v2.1", "v2.2")
