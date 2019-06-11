@@ -394,8 +394,11 @@ class GenericEndpoint(Endpoint):
 
     def set(self, **params):
         """Sets the endpoint with list passed"""
-        data = self.context.connection.update_endpoint(self._path, params)
-        return data
+        # Workaround for int_ecossytem_data accepting a different
+        # set of arguments
+        if self._name == "int_ecosystem_data":
+            params = {"data": params}
+        return self.context.connection.update_endpoint(self._path, params)
 
     def list(self, **params):
         """ Return all entities in this collection as a list """
