@@ -3,7 +3,7 @@
 
 ## Introduction
 
-This is Python SDK version 0.1 for the **Datera** Fabric Services API.
+This is Python SDK version v1.2 for the **Datera** Fabric Services API.
 Download and use of this package implicitly accepts the terms in COPYING
 
 Users of this package are assumed to have familiarity with the **Datera** API.
