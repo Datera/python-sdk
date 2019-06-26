@@ -9,6 +9,15 @@ Download and use of this package implicitly accepts the terms in COPYING
 Users of this package are assumed to have familiarity with the **Datera** API.
 Details around the API itself are not necessarily covered through this SDK.
 
+## Features
+
+* Automatic session management and login
+* Automatic and configuable request retries
+* Object to REST request translation
+* Standard Logging Format (compatible with Datera SREQ log parsing)
+* Endpoint validation (toggleable)
+* Dot-notation access to response attributes
+* [UDC](#universal-datera-config) compliance
 
 ## Installation
 
