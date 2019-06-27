@@ -4,7 +4,7 @@ since many other modules import this one
 """
 __copyright__ = "Copyright 2017, Datera, Inc."
 
-VERSION = "1.2.24"
+VERSION = "1.2.25"
 
 VERSION_HISTORY = """
 Version History:
@@ -48,6 +48,7 @@ Version History:
     1.2.24 -- Accumulation skip for 3.2.X product versions when 'filter'
               parameter is present.  Added version check system and
               local version update during login.
+    1.2.25 -- Version increment to workaround PyPI .24 version caching issue
 """
 
 API_VERSIONS = ("v2", "v2.1", "v2.2")
