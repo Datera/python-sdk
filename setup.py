@@ -1,5 +1,17 @@
 #!/usr/bin/env python
 
+"""
+Releasing to PyPI
+
+1. Increment VERSION and VERSION_HISTORY in constants.py
+
+2. Remove the "build" and "dist" folders
+
+3. Run "python setup.py sdist bdist_wheel" to build the wheels
+
+4. Upload to PyPI with "twine upload dist/*"
+"""
+
 import io
 import os
 import re
