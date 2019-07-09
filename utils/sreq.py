@@ -2,10 +2,15 @@
 from __future__ import unicode_literals, division, print_function
 
 import argparse
+import functools
+import hashlib
 import json
 import io
+import os
 import re
+import shutil
 import sys
+import zlib
 
 from sreq_common import OPERATORS, OPERATORS_FUNC
 
@@ -15,6 +20,28 @@ except ImportError:
     text_histogram = None
 
 """
+See Requests
+------------
+
+This script started out as a fun idea I had one evening where I thought it
+would be cool to be able to pull out all the API requests from a busy Cinder
+Volume log and then perform actions on them such as filtering or sorting.
+
+It sort of ballooned from there and as you'll see from the code below, it
+kind of grew organically without any real direction.  I apologize for some of
+the code idioms you'll find in this as I was having fun writing it and that's
+ALWAYS a bad sign.
+
+I had intensions of factoring this out into several different scripts meant for
+different ecosystem logging plugins, but eventually just settled on a common
+logging format that this parses using regexes.  Unfortunately that means any
+changes to the Python-SDK, Golang SDK or Powershell SDK connection libraries
+can potentially break this.
+
+Of all the stuff I've written for ecosystem, this has been the most helpful
+for diagnosing customer issues quickly as it lets me instantly construct a
+history of the requests to the Datera backend.
+
 VERSION HISTORY:
     1.0.0 -- Initial sreq.py version
     1.0.1 -- Addition of timestamp filtering
@@ -22,8 +49,12 @@ VERSION HISTORY:
     1.2.0 -- Added ability to leave off field in --filter to check all fields
     1.2.1 -- Moved some stuff out into sreq_common
     1.2.2 -- Compatibility updates
+    1.2.3 -- Journalctl timestamp compatibility update
+    1.2.4 -- Go-SDK support, results caching, bugfixes
 """
-VERSION = "v1.2.2"
+VERSION = "v1.2.4"
+
+CACHE = '/tmp/.sreq/'
 
 USAGE = """
 
@@ -33,6 +64,8 @@ The Datera Cinder Driver Request Sorter
 
 Basic
     $ ./sreq.py /your/cinder-volume/log/location.log
+
+Processed logfiles are compressed and cached in {} for faster subsequent runs
 
 Multiple Log Files
     $ ./sreq.py /your/cinder-volume/log/location.log \
@@ -74,27 +107,39 @@ Show only requests without replies
 
 Show Volume Attach/Detach (useful for mapping volume to instance)
     $ ./sreq.py /your/cinder-volume/log/location.log --attach-detach
-"""
-DREQ = re.compile(r"""^(?P<time>\d{4}-\d\d-\d\d \d\d:\d\d:\d\d.\d{3}).*?
+
+Get the slowest 10 requests
+    $ ./sreq.py /your/cinder-volume/log/location.log
+--pretty \
+--sort RESDELTA \
+--limit 10
+
+Get the average duration of all requests
+    $ ./sreq.py /your/cinder-volume/log/location.log
+--pretty \
+| grep RESDELTA | awk '{ total += $3; count++ } END { print total/count }'
+""".format(CACHE)
+
+DREQ = re.compile(r"""^(?P<time>\d{4}-\d\d-\d\d[T ]\d\d:\d\d:\d\d(\.\d{3}|Z)).*?
 Datera Trace ID: (?P<trace>(\w+-\w+-\w+-\w+-\w+)|None)
 Datera Request ID: (?P<rid>\w+-\w+-\w+-\w+-\w+)
 Datera Request URL: (?P<url>.*?)
 Datera Request Method: (?P<method>.*?)
 Datera Request Payload: (?P<payload>.*?)
-Datera Request Headers: (?P<headers>.*?$)""", re.MULTILINE)
+Datera Request Headers: (?P<headers>.*?[\*\}])""", re.DOTALL)
 
-DRES = re.compile(r"""^(?P<time>\d{4}-\d\d-\d\d \d\d:\d\d:\d\d.\d{3}).*?
+DRES = re.compile(r"""^(?P<time>\d{4}-\d\d-\d\d[T ]\d\d:\d\d:\d\d(\.\d{3}|Z)).*?
 Datera Trace ID: (?P<trace>(\w+-\w+-\w+-\w+-\w+)|None)
 Datera Response ID: (?P<rid>\w+-\w+-\w+-\w+-\w+)
-Datera Response TimeDelta: (?P<delta>\d+\.\d\d?\d?)s
+Datera Response TimeDelta: (?P<delta>\d+\.\d*)s
 Datera Response URL: (?P<url>.*?)
 Datera Response Payload: (?P<payload>.*?)
-Datera Response Object.*""", re.MULTILINE)
+Datera Response Object:""", re.DOTALL)
 
 # Journalctl matchers
 # ISO8601 2018-01-08T20:04:47+0000
-DREQ_J = re.compile(r"""^(?P<time>\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+\d{4}).*
-.*Datera Trace ID: (?P<trace>\w+-\w+-\w+-\w+-\w+)
+DREQ_J = re.compile(r"""^(?P<time>(\w+ \d\d \d\d:\d\d:\d\d)|(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+\d{4})).*
+.*Datera Trace ID: (?P<trace>\w+-\w+-\w+-\w+-\w+|None)
 .*Datera Request ID: (?P<rid>\w+-\w+-\w+-\w+-\w+)
 .*Datera Request URL: (?P<url>.*?)
 .*Datera Request Method: (?P<method>.*?)
@@ -102,13 +147,13 @@ DREQ_J = re.compile(r"""^(?P<time>\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+\d{4}).*
 .*Datera Request Headers: (?P<headers>.*?\})""")
 
 # ISO8601 2018-01-08T20:04:47+0000
-DRES_J = re.compile(r"""^(?P<time>\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+\d{4}).*
-.*Datera Trace ID: (?P<trace>\w+-\w+-\w+-\w+-\w+)
+DRES_J = re.compile(r"""^(?P<time>(\w+ \d\d \d\d:\d\d:\d\d)|(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+\d{4})).*
+.*Datera Trace ID: (?P<trace>\w+-\w+-\w+-\w+-\w+|None)
 .*Datera Response ID: (?P<rid>\w+-\w+-\w+-\w+-\w+)
 .*Datera Response TimeDelta: (?P<delta>\d+\.\d\d?\d?)s
 .*Datera Response URL: (?P<url>.*?)
-.*Datera Response Payload: (?P<payload>.*?)
-.*Datera Response Object.*""")
+.*Datera Response Payload: (?P<payload>.*)
+""")
 #######
 
 ATTACH = re.compile(r"^(?P<time>\d{4}-\d\d-\d\d \d\d:\d\d:\d\d.\d{3}).*"
@@ -167,11 +212,13 @@ AD_VALS = {"TIME": 0,
            "HOST": 5}
 
 
-def _sort_helper(x):
+def _sort_helper(sort, x):
+    if sort == "RESDELTA":
+        return float(x[TUP_VALS[sort.upper()]])
     try:
-        return x[TUP_VALS[args.sort.upper()]]
+        return x[TUP_VALS[sort.upper()]]
     except IndexError:
-        return x[AD_VALS[args.sort.upper()]]
+        return x[AD_VALS[sort.upper()]]
 
 
 def filter_func(found, loc, val, operator):
@@ -210,7 +257,7 @@ def get_filtered(filters, data, vals):
 # TODO: Currently only finds attach/detach for boot-from-volume attachments.
 # Manual attach/detach does not generate the necessary log messages for us
 # to track it (weirdly).
-def find_attach_detach(lines, journalctl=False):
+def find_attach_detach(f, lines, journalctl=False):
     attach_detach = []
     for line in lines:
         if journalctl:
@@ -235,14 +282,14 @@ def find_attach_detach(lines, journalctl=False):
                 dmatch.group("vm"),
                 None,
                 None))
-    if args.filter:
-        attach_detach = get_filtered(args.filter, attach_detach, AD_VALS)
+    if f:
+        attach_detach = get_filtered(f, attach_detach, AD_VALS)
     return attach_detach
 
 
-def get_attach_detach(args, data):
+def get_attach_detach(f, data):
     jsond = []
-    ad = find_attach_detach(data, args.journalctl)
+    ad = find_attach_detach(f, data, args.journalctl)
     limit = args.limit if args.limit else None
     if args.sort.upper() == 'RESDELTA':
         sort = 'TIME'
@@ -287,8 +334,12 @@ def gen_log_blocks(data):
     for line in data:
         if "Datera Trace ID" in line:
             found = [prev, line]
-            for _ in range(6):
-                found.append(next(data))
+            while True:
+                this = next(data)
+                found.append(this)
+                if ("Datera Response Object" in this or
+                        "Datera Request Headers" in this):
+                    break
             yield "".join(found).replace("\r", "")
         prev = line
 
@@ -296,8 +347,7 @@ def gen_log_blocks(data):
 def get_match_dict(args, data, journalctl=False):
     found = {}
 
-    log_blocks = gen_log_blocks(data)
-    for logb in log_blocks:
+    for logb in gen_log_blocks(data):
         if args.journalctl:
             req_match = DREQ_J.match(logb)
         else:
@@ -326,34 +376,30 @@ def get_match_dict(args, data, journalctl=False):
                          res_match.group("delta"),
                          res_match.group("url"),
                          res_match.group("payload")])
-            else:
-                # print("No Request Match\n{}".format(logb))
-                pass
-
     return found
 
 
 def orphan_filter(found):
     for entry in found.values() if type(found) == dict else found:
-        if len(entry) < len(TUP_VALS) and args.orphans:
-            # orphans.append(entry)
-            yield entry
-        else:
+        if len(entry) < len(TUP_VALS):
             yield entry
 
 
 def print_results(result):
     limit = args.limit if args.limit else None
-    jsond = []
-    result = filter(lambda x: len(x) > 7, result)
-    for entry in reversed(sorted(result, key=_sort_helper)):
+    out = []
+    sh = functools.partial(_sort_helper, args.sort)
+    for entry in reversed(sorted(result, key=sh)):
         if limit == 0:
             break
         elif args.json:
             d = {}
             for enum, val in TUP_VALS.items():
-                d[enum] = entry[val]
-            jsond.append(d)
+                try:
+                    d[enum] = entry[val]
+                except IndexError:
+                    pass
+            out.append(d)
         elif args.pretty:
             print()
             for enum, val in sorted(TUP_VALS.items(), key=lambda x: x[1]):
@@ -368,8 +414,8 @@ def print_results(result):
             print()
         if limit:
             limit -= 1
-    if jsond:
-        print(json.dumps(jsond))
+    if args.json:
+        print(json.dumps(out))
 
 
 def print_stats(result):
@@ -425,19 +471,36 @@ def main(args):
     if args.print_operators:
         print_operators()
         sys.exit(0)
+    if args.clear_cache:
+        shutil.rmtree(CACHE)
+
+    if not os.path.exists(CACHE):
+        os.mkdir(CACHE)
+
     files = args.logfiles
 
-    data = gen_file_data(files)
-    if args.attach_detach:
-        get_attach_detach(args, data)
-        sys.exit(0)
+    pfname = ':'.join(sorted(map(os.path.basename, files))).encode('utf-8')
+    md5 = hashlib.md5()
+    md5.update(pfname)
+    cname = os.path.join(CACHE, md5.hexdigest())
+    if not args.no_cache and os.path.exists(cname) and not args.attach_detach:
+        with io.open(cname, 'rb') as f:
+            found = json.loads(zlib.decompress(f.read()).decode('utf-8'))
+    else:
+        data = gen_file_data(files)
+        if args.attach_detach:
+            get_attach_detach(args.filter, data)
+            sys.exit(0)
 
-    found = get_match_dict(args, data, args.journalctl).values()
+        found = get_match_dict(args, data, args.journalctl).values()
+        with io.open(cname, 'wb+') as f:
+            data = zlib.compress(json.dumps(list(found)).encode('utf-8'))
+            f.write(data)
 
     if args.filter:
         found = get_filtered(args.filter, found, TUP_VALS)
 
-    result = orphan_filter(found)
+    result = orphan_filter(found) if args.orphans else found
 
     print_results(result)
 
@@ -459,8 +522,8 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--filter", default=[], action='append',
                         help="Filter by this enum value and operator: "
                         "'REQPAYLOAD##someid'.  MAKE SURE TO QUOTE ARGUMENT")
-    parser.add_argument("-s", "--sort", default="RESDELTA",
-                        help="Sort by this enum value: Eg: RESDELTA")
+    parser.add_argument("-s", "--sort", default="REQTIME",
+                        help="Sort by this enum value: Eg: REQTIME")
     parser.add_argument("-l", "--limit", default=None, type=int,
                         help="Limit results to provided value")
     parser.add_argument("-p", "--pretty", action="store_true",
@@ -477,5 +540,9 @@ if __name__ == "__main__":
     parser.add_argument("--journalctl", action="store_true",
                         help="Log is journalctl based, use journalctl parsers")
     parser.add_argument("--stats", action="store_true")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="Don't read from cached results")
+    parser.add_argument("--clear-cache", action="store_true",
+                        help="Delete cached results from system")
     args = parser.parse_args()
     sys.exit(main(args))
