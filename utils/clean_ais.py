@@ -2,6 +2,19 @@
 from __future__ import (print_function, unicode_literals, division,
                         absolute_import)
 
+"""
+Simple helper script to clean AppInstances matching a regex filter
+
+This has mostly been replaced by DBMP (github.com/Datera/dbmp)
+
+Usage:
+    $ ./clean_ais.py -f my-app --threads 10
+
+    $ ./clean_ais.py --all --threads 10
+
+    $ echo "my-app1\nmy-app2" | ./clean_ais.py --stdin
+"""
+
 import re
 import sys
 import threading
