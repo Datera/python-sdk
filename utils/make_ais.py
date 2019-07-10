@@ -2,6 +2,22 @@
 from __future__ import (print_function, unicode_literals, division,
                         absolute_import)
 
+"""
+Simple script to create a bunch of AppInstances with similar names.  This
+has been replaced by DBMP, but the script can still be useful for one-off
+creations.
+
+
+Usage:
+    $ ./make_ais.py --prefix my-vol --number 10
+
+    $ ./make_ais.py --prefix test \
+         --size 5 \
+         --number 200 \
+         --threads 20 \
+         --replica_count 2
+"""
+
 import sys
 import threading
 try:
