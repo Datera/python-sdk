@@ -3,6 +3,30 @@
 from __future__ import (print_function, unicode_literals, division,
                         absolute_import)
 
+"""
+This script will output the Datera AppInstances that are being managed
+by an OpenStack Cinder (or Glance) instance.
+
+It does this by retrieving all the AppInstances on the Datera backend, then
+comparing the UUIDs extracted from their names to the UUIDs of the Cinder
+volumes under the current OpenStack instance designated by the presence of
+a clouds.yaml file (or other openstacksdk compatible credentials, such as
+environment variables).
+
+Usage:
+    $ ./show_os_volumes.py
+
+    # For more than just the active Cinder project (requires admin-level creds)
+    $ ./show_os_volumes.py --all-projects-all-tenants
+
+    # For just the Datera Cinder Volume Driver cached images
+    $ ./show_os_volumes.py --only-cached-images
+
+    # For just the volumes created on the Datera backend by Cinder that do not
+    # have a corresponding Cinder volume entry
+    $ ./show_os_volumes.py --only-os-orphans
+"""
+
 import os
 import re
 import subprocess

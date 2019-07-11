@@ -2,6 +2,13 @@
 from __future__ import (print_function, unicode_literals, division,
                         absolute_import)
 
+"""
+Super simple script to dump the metadata for all app_instances.
+
+Usage:
+    $ ./print_metadata.py
+"""
+
 import sys
 
 from dfs_sdk import scaffold
