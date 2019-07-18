@@ -265,6 +265,7 @@ class ApiConnection(object):
                       "Datera Response ID: %(rid)s\n"
                       "Datera Response TimeDelta: %(delta)ss\n"
                       "Datera Response URL: %(url)s\n"
+                      "Datera Response Code: %(rcode)s\n"
                       "Datera Response Payload: %(payload)s\n"
                       "Datera Response Object: %(obj)s\n",
                       {'tid': getattr(
@@ -272,6 +273,7 @@ class ApiConnection(object):
                        'rid': request_id,
                        'delta': timedelta,
                        'url': resp.url,
+                       'rcode': resp.status_code,
                        'payload': payload,
                        'obj': None})
         except requests.ConnectionError as e:
