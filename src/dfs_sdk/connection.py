@@ -92,7 +92,7 @@ def _with_retry(method):
     def _wrapper_retry(self, *args, **kwargs):
         """ Call the original method with backoff """
         tstart = time.time()
-        backoff = 0
+        backoff = 1
         err = None
         no_response = False
         while time.time() - tstart < RETRY_TIMEOUT:
@@ -117,10 +117,10 @@ def _with_retry(method):
                     time.sleep(slp)
                 elif self._context.retry_503_type == "backoff":
                     err = e
-                    slp = 1 + (backoff * backoff)
                     LOG.warn("Hit 503 Retry.  "
-                             "Backing off and trying again in {}s".format(slp))
-                    time.sleep(slp)
+                             "Backing off and trying again in {}s".format(backoff))
+                    time.sleep(backoff)
+                    backoff += 1
                 else:
                     raise
             except ApiConnectionError as e:
@@ -133,10 +133,10 @@ def _with_retry(method):
                     time.sleep(slp)
                 elif self._context.retry_connection_type == "backoff":
                     err = e
-                    slp = 1 + (backoff * backoff)
                     LOG.warn("Hit Connection Error: {} Backing off and trying "
-                             "again in {}s".format(e, slp))
-                    time.sleep(slp)
+                             "again in {}s".format(e, backoff))
+                    time.sleep(backoff)
+                    backoff += 1
                 else:
                     raise
             except ApiConflictError as e:
