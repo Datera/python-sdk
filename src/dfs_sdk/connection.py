@@ -497,6 +497,10 @@ class ApiConnection(object):
                 if 'tenant' in data:
                     headers["tenant"] = data['tenant']
                     data.pop('tenant')
+                elif 'data' in data:
+                    if 'tenant' in data['data']:
+                        headers["tenant"] = data['data']['tenant']
+                        data['data'].pop('tenant')
             elif isinstance(params, dict):
                 if 'tenant' in params:
                     headers["tenant"] = params['tenant']
