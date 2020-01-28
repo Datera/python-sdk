@@ -59,13 +59,16 @@ class _ApiResponseError(ApiError):
         self.msg = msg
         self.resp_data = resp_data or '{}'
         js = {}
-        try:
-            js = json.loads(self.resp_data)
-        except ValueError:
-            LOG.error("Invalid json payload from API response!")
-        except TypeError as e:
-            LOG.error("Object recieved from API response was unexpected type "
-                      "error: {}, data: {}".format(e, self.resp_data))
+        if isinstance(self.resp_data, dict):
+            js = self.resp_data
+        else:
+            try:
+                js = json.loads(self.resp_data)
+            except ValueError:
+                LOG.error("Invalid json payload from API response!")
+            except TypeError as e:
+                LOG.error("Object recieved from API response was unexpected "
+                          "type error: {}, data: {}".format(e, self.resp_data))
 
         for attr in js.keys():
             # Intentionally overwrite exp.message since it's deprecated
