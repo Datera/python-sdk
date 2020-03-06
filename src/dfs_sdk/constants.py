@@ -2,9 +2,9 @@
 Provides hard-coded values used in this package.  No imports are allowed
 since many other modules import this one
 """
-__copyright__ = "Copyright 2017, Datera, Inc."
+__copyright__ = "Copyright 2020, Datera, Inc."
 
-VERSION = "1.2.25"
+VERSION = "1.2.26"
 
 VERSION_HISTORY = """
 Version History:
@@ -49,6 +49,7 @@ Version History:
               parameter is present.  Added version check system and
               local version update during login.
     1.2.25 -- Version increment to workaround PyPI .24 version caching issue
+    1.2.26 -- Minor bugfix release.
 """
 
 API_VERSIONS = ("v2", "v2.1", "v2.2")
