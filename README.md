@@ -275,4 +275,4 @@ test PyPI server
 
 ## Reporting Problems
 
-For problems and feedback, please email "support@datera.io"
+For problems and feedback, please open an github issue. This project is community supported.
