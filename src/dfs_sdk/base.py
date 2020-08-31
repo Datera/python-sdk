@@ -422,4 +422,7 @@ class GenericEndpoint(Endpoint):
 
     def entity_from_path(self, path, **params):
         data = self.context.connection.read_endpoint(path, params)
-        return self._new_contained_entity(data)
+        if isinstance(data, dict):
+            return self._new_contained_entity(data)
+        else:
+            return data
