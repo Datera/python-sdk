@@ -590,6 +590,11 @@ class ApiConnection(object):
         """
         _metadata, data = self._do_request("GET", path, params=params,
                                            sensitive=sensitive)
+
+        if 'complete' in _metadata:
+            if not _metadata['complete']:
+                return None
+
         return data
 
     def read_entity(self, path, params=None, sensitive=False):
