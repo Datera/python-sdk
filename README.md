@@ -1,6 +1,5 @@
 # Datera Python SDK
 
-
 ## Introduction
 
 This is Python SDK version v1.2 for the **Datera** Fabric Services API.
