@@ -11,6 +11,7 @@ import os
 from .api import DateraApi as _DateraApi
 from .api import DateraApi21 as _DateraApi21
 from .api import DateraApi22 as _DateraApi22
+from .api import DateraApi23 as _DateraApi23
 
 from .constants import API_VERSIONS, DEFAULT_CACHED_SCHEMA
 from .exceptions import ApiError
@@ -32,7 +33,8 @@ __copyright__ = "Copyright 2017, Datera, Inc."
 # TODO(mss): generate this from version list imported from constants
 VERSION_MAP = {"v2": _DateraApi,
                "v2.1": _DateraApi21,
-               "v2.2": _DateraApi22}
+               "v2.2": _DateraApi22,
+               "v2.3": _DateraApi23}
 
 
 def get_api(hostname, username, password, version, tenant=None, strict=True,

@@ -53,7 +53,7 @@ number of ways:
       "username": "admin",
       "password": "password",
       "tenant": "/root",
-      "api_version": "2.2",
+      "api_version": "2.3",
       "ldap": ""}
 ```
 * The file can be in any of the following places.  This is also the lookup
@@ -184,9 +184,9 @@ Another way of viewing the managed object hierarchy is as follows:
 HTTP operations on URL endpoints is the only way to interact with the set of managed objects.
 URL's have the format:
 ```bash
-      http://192.168.42.13:7717/v2.2/<object_class>/[<instance>]/...
+      http://192.168.42.13:7717/v2.3/<object_class>/[<instance>]/...
 ```
-where **7717** is the port used to access the API, and "v2.2" corresponds to an API version control.
+where **7717** is the port used to access the API, and "v2.3" corresponds to an API version control.
 
 Briefly, the REST API supports 4 operations/methods **create (POST), modify (PUT), list (GET), delete (DELETE)**.
 Any input payload is in JSON format;  any return payload is in JSON format.
@@ -204,7 +204,7 @@ Obtaining an object handle can be done as follows:
 ```python
     from dfs_sdk import get_api
     [...]
-    api = get_api(mgmt_ip, username, password, "v2.2" **kwargs)
+    api = get_api(mgmt_ip, username, password, "v2.3" **kwargs)
 ```
 
 You can also initialize the SDK using a Datera UDC file.  The following will read any valid

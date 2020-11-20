@@ -182,8 +182,14 @@ class Reader22(Reader21):
         super(Reader22, self).__init__(api_schema)
 
 
+class Reader23(Reader22):
+    def __init__(self, api_schema):
+        super(Reader23, self).__init__(api_schema)
+
+
 def get_reader(version):
     _readers = {"v2": Reader2,
                 "v2.1": Reader21,
-                "v2.2": Reader22}
+                "v2.2": Reader22,
+                "v2.3": Reader23}
     return _readers[version]
