@@ -27,7 +27,7 @@ class CleanupHandler(BaseHook):
         self._cleanup_map = {}  # map from path strings to Entity objects
 
     def supported_versions(self):
-        return "v2.1", "v2.2"
+        return "v2.1", "v2.2", "v2.3"
 
     def create_entity(self, entity):
         """ Adding resource to the cleanup map
