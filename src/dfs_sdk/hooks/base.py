@@ -38,7 +38,7 @@ class BaseHook(object):
     def supported_versions(self):
         """ Called to check if hook supports current API version.
         Returns: list/tuple of supported API version strings
-        Eg: ("v2.1", "v2.2")
+        Eg: ("v2.1", "v2.2", "v2.3")
         """
         pass
 

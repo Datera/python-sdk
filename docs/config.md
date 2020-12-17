@@ -159,7 +159,7 @@ API loading process
         "username": "some_username",
         "password": "some_password",
         "tenant": "some_tenant",
-        "api_version": "2.2"
+        "api_version": "2.3"
     }
     ```
 2. Environment Variables (sourceable file)
@@ -168,7 +168,7 @@ API loading process
     DAT_USER=admin
     DAT_PASS=password
     DAT_TENANT=/root
-    DAT_API=2.2
+    DAT_API=2.3
     ```
 3. User executes script
     1. User provides credentials via CLI
