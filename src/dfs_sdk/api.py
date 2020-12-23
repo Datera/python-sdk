@@ -154,3 +154,10 @@ class DateraApi22(_api_getter(RootEp)):
 
     def __init__(self, *args, **kwargs):
         super(DateraApi22, self).__init__(*args, **kwargs)
+
+class DateraApi23(_api_getter(RootEp)):
+
+    _version = 'v2.3'
+
+    def __init__(self, *args, **kwargs):
+        super(DateraApi23, self).__init__(*args, **kwargs)

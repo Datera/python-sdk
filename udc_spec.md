@@ -32,7 +32,7 @@ the following
       "username": "admin",
       "password": "password",
       "tenant": "/root",
-      "api_version": "2.2",
+      "api_version": "2.3",
       "ldap": ""
 }
 ```
@@ -98,7 +98,7 @@ For example if you had the following UDC file
       "username": "admin",
       "password": "password",
       "tenant": "/root",
-      "api_version": "2.2",
+      "api_version": "2.3",
       "ldap": ""
 }
 ```
@@ -110,7 +110,7 @@ to
       "username": "admin",
       "password": "password",
       "tenant": "/root",
-      "api_version": "2.2",
+      "api_version": "2.3",
       "ldap": ""
 }
 ```
@@ -144,7 +144,7 @@ variables or CLI arguments and a default value will be provided.
 Current optional keys and their default values:
 
 * ``tenant``: ``"/root"``
-* ``api_version``: ``"2.2"``
+* ``api_version``: ``"2.3"``
 * ``ldap``: ``""``
 
 #### UDC To Driver Specific Config

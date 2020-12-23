@@ -21,8 +21,8 @@ SPW = re.compile(r'san_password\s+?=\s+?(?P<san_password>.*)')
 TNT = re.compile(r'datera_tenant_id\s+?=\s+?(?P<tenant_id>.*)')
 LDP = re.compile(r'datera_ldap_server\s+?=\s+?(?P<ldap>.*)')
 
-LATEST = "2.2"
-FALLBACK = ["2", "2.1"]
+LATEST = "2.3"
+FALLBACK = ["2", "2.1", "2.2"]
 
 UNIX_HOME = os.path.join(os.path.expanduser('~'))
 UNIX_CONFIG_HOME = os.path.join(UNIX_HOME, 'datera')
@@ -38,7 +38,7 @@ EXAMPLE_CONFIG = {"mgmt_ip": REPLACE_IP,
                   "username": "admin",
                   "password": "password",
                   "tenant": "/root",
-                  "api_version": "2.2",
+                  "api_version": "2.3",
                   "ldap": ""}
 DATERA_RC = "datrc"
 
@@ -55,7 +55,7 @@ EXAMPLE_RC = """\
 {}=admin
 {}=password
 {}=/root
-{}=2.2
+{}=2.3
 {}=
 """.format(ENV_MGMT, ENV_USER, ENV_PASS, ENV_TENANT, ENV_API, ENV_LDAP)
 
@@ -63,7 +63,7 @@ ENV_HELP = {ENV_MGMT: "Datera management IP address or hostname",
             ENV_USER: "Datera account username",
             ENV_PASS: "Datera account password",
             ENV_TENANT: "Datera tenant ID. eg: SE-OpenStack",
-            ENV_API: "Datera API version. eg: 2.2",
+            ENV_API: "Datera API version. eg: 2.3",
             ENV_LDAP: "Datera account LDAP server"}
 
 _CONFIG = {}
